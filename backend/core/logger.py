@@ -89,7 +89,7 @@ def write_agent_trace(
     chart_url: Optional[str] = None
 ):
     """
-    Appends a new trace record to e:\Thesis\backend\logs\agent_trace.json.
+    Appends a new trace record to backend/logs/agent_trace.json.
     Creates parent directories and the file if they do not exist.
     """
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
