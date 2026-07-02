@@ -34,8 +34,8 @@ def rate_limiter(max_calls: int = 5, period_seconds: int = 60):
                     detail=f"Rate limit exceeded. Please wait {ttl} seconds before trying again."
                 )
             return
-        except redis.RedisError as e:
-            # Fall back to in-memory rate limiter if Redis is offline
+        except Exception as e:
+            # Fall back to in-memory rate limiter if Redis is offline or misconfigured
             pass
         except HTTPException:
             # Re-raise HTTPExceptions from Redis block
