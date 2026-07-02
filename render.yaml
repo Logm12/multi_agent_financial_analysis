@@ -1,9 +1,13 @@
 services:
   - type: web
     name: financial-analyzer-backend
-    env: docker
+    env: python
+    buildCommand: pip install . && pip install fastapi uvicorn gunicorn sse-starlette python-multipart redis psycopg[binary] langgraph langsmith langchain-core langchain-chroma langchain-openai langchain-text-splitters langchain-experimental openai langgraph-checkpoint-postgres
+    startCommand: gunicorn backend.api.server:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
       - key: OPENAI_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
         sync: false
       - key: POSTGRES_URL
         sync: false

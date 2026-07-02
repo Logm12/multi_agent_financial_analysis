@@ -11,23 +11,29 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from core.config import CODER_MODEL, OLLAMA_BASE_URL
 
-# Check if running on Render or if OpenAI is explicitly requested for Coder
-if os.getenv("RENDER") or os.getenv("USE_OPENAI_FOR_CODER") == "True":
-    openai_key = os.getenv("OPENAI_API_KEY")
-    if openai_key:
-        print("[Coder] Using ChatOpenAI (gpt-4o-mini) as Coder LLM on Render/Web.")
-        llm = ChatOpenAI(
-            model="gpt-4o-mini",
-            temperature=0,
-            api_key=openai_key
-        )
+# Check if running on Render or if Nvidia NIM is explicitly requested for Coder
+if os.getenv("RENDER") or os.getenv("USE_NVIDIA_FOR_CODER") == "True":
+    nvidia_key = os.getenv("NVIDIA_API_KEY")
+    if nvidia_key:
+        print("[Coder] Using NVIDIA NIM (mistralai/mistral-small-4-119b-2603) as Coder LLM on Render/Web.")
+        from core.nim_client import get_nim_llm
+        llm = get_nim_llm("mistralai/mistral-small-4-119b-2603", temperature=0)
     else:
-        print("[Coder Warning] Render detected but OPENAI_API_KEY is not set. Falling back to local ChatOllama...")
-        llm = ChatOllama(
-            base_url=OLLAMA_BASE_URL.replace("/v1", ""),
-            model=CODER_MODEL,
-            temperature=0
-        )
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if openai_key:
+            print("[Coder Warning] NVIDIA_API_KEY is not set. Falling back to ChatOpenAI (gpt-4o-mini)...")
+            llm = ChatOpenAI(
+                model="gpt-4o-mini",
+                temperature=0,
+                api_key=openai_key
+            )
+        else:
+            print("[Coder Warning] No cloud LLM keys found. Falling back to ChatOllama...")
+            llm = ChatOllama(
+                base_url=OLLAMA_BASE_URL.replace("/v1", ""),
+                model=CODER_MODEL,
+                temperature=0
+            )
 else:
     # Default local development configuration
     llm = ChatOllama(
