@@ -8,14 +8,33 @@ from .state import AgentState
 from backend.tools.sandbox import SafePythonREPL
 
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from core.config import CODER_MODEL, OLLAMA_BASE_URL
 
-# Ollama configuration for Coder (uses qwen2.5-coder-thesis:latest)
-llm = ChatOllama(
-    base_url=OLLAMA_BASE_URL.replace("/v1", ""),
-    model=CODER_MODEL,
-    temperature=0
-)
+# Check if running on Render or if OpenAI is explicitly requested for Coder
+if os.getenv("RENDER") or os.getenv("USE_OPENAI_FOR_CODER") == "True":
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        print("[Coder] Using ChatOpenAI (gpt-4o-mini) as Coder LLM on Render/Web.")
+        llm = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0,
+            api_key=openai_key
+        )
+    else:
+        print("[Coder Warning] Render detected but OPENAI_API_KEY is not set. Falling back to local ChatOllama...")
+        llm = ChatOllama(
+            base_url=OLLAMA_BASE_URL.replace("/v1", ""),
+            model=CODER_MODEL,
+            temperature=0
+        )
+else:
+    # Default local development configuration
+    llm = ChatOllama(
+        base_url=OLLAMA_BASE_URL.replace("/v1", ""),
+        model=CODER_MODEL,
+        temperature=0
+    )
 
 def load_finance_dict() -> str:
     """Read the financial formulas dictionary to include in the Coder prompt."""
