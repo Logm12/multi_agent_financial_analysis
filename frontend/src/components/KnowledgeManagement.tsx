@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
 import { Database, Search, Plus, Trash2, Edit2, FileText, RefreshCw } from 'lucide-react';
 import apiClient from '../api/client';

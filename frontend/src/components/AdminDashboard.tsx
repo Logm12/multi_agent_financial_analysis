@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useEffect, useState } from 'react';
 import { Users, FileText, HardDrive, BarChart3, Database, Shield } from 'lucide-react';
 

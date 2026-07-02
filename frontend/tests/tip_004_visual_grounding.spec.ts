@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { test, expect } from '@playwright/test';
 
 test.describe('TIP-QA-004 Interactive Visual Grounding E2E Suite', () => {

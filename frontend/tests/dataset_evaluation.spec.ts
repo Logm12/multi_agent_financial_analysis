@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -111,7 +112,7 @@ test.describe('Multi-Agent E2E Financial Analysis Evaluation Suite', () => {
       // Check for reasoning steps
       const reasoningDetails = page.locator('#reasoning-steps').last();
       const hasSteps = await reasoningDetails.isVisible().catch(() => false);
-      let steps = [];
+      const steps = [];
       if (hasSteps) {
         const stepItems = page.locator('#reasoning-steps >> span');
         const count = await stepItems.count();

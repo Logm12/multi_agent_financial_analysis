@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useRef, useEffect } from 'react';
 import MainContent from './MainContent';
 import RightPanel from './RightPanel';

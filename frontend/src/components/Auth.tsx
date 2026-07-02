@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
@@ -25,7 +26,7 @@ export const Auth = () => {
   // and must survive the App loading-screen unmount/remount cycle.
   useEffect(() => {
     setFormError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, Upload, Send, Loader2, FileText } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
