@@ -13,6 +13,22 @@ test.describe('Lumo AI E2E Chat Flow', () => {
     await page.route('**/health', async (route) => {
       await route.fulfill({ status: 200, body: JSON.stringify({ status: 'ok' }) });
     });
+    await page.route('**/api/v1/documents', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 'doc-123', name: 'FPT_BCTC_2023.pdf', size: '1.2 MB', uploadedAt: '2026-07-02', status: 'indexed' }
+        ])
+      });
+    });
+    await page.route('**/api/v1/documents/doc-123/info', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'doc-123', name: 'FPT_BCTC_2023.pdf', totalPages: 1, pages: [{ page: 1, width: 800, height: 1000 }] })
+      });
+    });
 
     // Intercept and mock the SSE endpoint /chat-stream
     await page.route('**/chat-stream*', async (route) => {
@@ -70,6 +86,22 @@ test.describe('Lumo AI E2E Chat Flow', () => {
     });
     await page.route('**/health', async (route) => {
       await route.fulfill({ status: 200, body: JSON.stringify({ status: 'ok' }) });
+    });
+    await page.route('**/api/v1/documents', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 'doc-123', name: 'FPT_BCTC_2023.pdf', size: '1.2 MB', uploadedAt: '2026-07-02', status: 'indexed' }
+        ])
+      });
+    });
+    await page.route('**/api/v1/documents/doc-123/info', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 'doc-123', name: 'FPT_BCTC_2023.pdf', totalPages: 1, pages: [{ page: 1, width: 800, height: 1000 }] })
+      });
     });
 
     await page.goto('http://localhost:5173');
