@@ -63,7 +63,7 @@ def retrieve_node(state: AgentState, config: RunnableConfig = None) -> dict:
             temperature=0,
         )
         rewriter_prompt = PromptTemplate.from_template(
-            "You are a search expert for financial statement database. Translate the following user query into a concise search query (space-separated keywords in English or Vietnamese), removing conversational fluff. Focus on the target company/ticker symbol (e.g. VNM, FPT) and specific financial metrics.\n\nCRITICAL: Output ONLY the space-separated keywords on a single line. Do NOT include any intro, explanation, bullet points, labels like 'Keywords:', or formatting.\n\nQuery: {query}\nKeywords:"
+            "You are a search expert for financial statement database. Translate the following user query into a concise search query (space-separated keywords), removing conversational fluff. Focus on the target company/ticker symbol (e.g. VNM, FPT) and specific financial metrics.\n\nCRITICAL: The search keywords MUST be in the same language as the query (e.g., if query is in Vietnamese, output keywords in Vietnamese like 'tài sản dài hạn VNM'). Output ONLY the space-separated keywords on a single line. Do NOT include any explanation, formatting, or labels.\n\nQuery: {query}\nKeywords:"
         )
         chain = rewriter_prompt | llm
         search_query = chain.invoke({"query": question}).content.strip()

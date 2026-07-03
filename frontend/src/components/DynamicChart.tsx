@@ -121,7 +121,7 @@ const DynamicChart: React.FC<DynamicChartProps> = ({ data, type = 'bar' }) => {
 
   return (
     <div className="w-full h-80 mt-4 p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         {renderChart()}
       </ResponsiveContainer>
     </div>
