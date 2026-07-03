@@ -64,7 +64,7 @@ def load_finance_dict() -> str:
 CODER_PROMPT = r"""You are a specialized Financial Analysis Coder Agent.
 Write Python code using pandas to process the financial data. Note that financial column names might contain Vietnamese diacritics, so handle them correctly.
 
-IMPORTANT: You MUST strictly adhere to the following financial formulas dictionary; do NOT invent or modify formulas:
+IMPORTANT: If the query asks for standard financial statement items (such as Total Assets, Long-term Assets, Revenue, Net Income, etc.) or values directly present in the context tables, you should extract and plot them directly. Only refer to and adhere to the following financial formulas dictionary if the query explicitly asks to calculate a financial ratio (such as ROE, ROA, Quick Ratio, Debt to Equity, etc.):
 {finance_dict}
 
 IMPORTANT DATA CLEANING RULES:
