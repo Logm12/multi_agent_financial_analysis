@@ -20,10 +20,11 @@ interface DynamicChartProps {
 }
 
 const DynamicChart: React.FC<DynamicChartProps> = ({ data, type = 'bar' }) => {
-  if (!data || data.length === 0) return null;
+  if (!data || !Array.isArray(data) || data.length === 0 || !data[0]) return null;
 
   // Extract all keys except 'name' to use as data series
-  const dataKeys = Object.keys(data[0]).filter((key) => key !== 'name');
+  const dataKeys = Object.keys(data[0] || {}).filter((key) => key !== 'name');
+  if (dataKeys.length === 0) return null;
   
   const colors = ['#6366F1', '#10B981', '#F59E0B', '#EF4444'];
 
