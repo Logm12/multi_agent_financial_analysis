@@ -27,7 +27,7 @@ def check_retry(state: AgentState):
     
     return "retry"
 
-def build_graph():
+def build_graph(checkpointer=None):
     """Dựng luồng LangGraph Workflow hoàn chỉnh (TIP-004)."""
     workflow = StateGraph(AgentState)
 
@@ -79,40 +79,39 @@ def build_graph():
     # 6. Synthesizer -> END
     workflow.add_edge("synthesizer", END)
 
-    # 7. Persistence: Sử dụng PostgresSaver cho TIP-004 với cơ chế Fallback sang MemorySaver
-    checkpointer = None
-    try:
-        from core.config import POSTGRES_URL
-        from psycopg_pool import ConnectionPool
-        from langgraph.checkpoint.postgres import PostgresSaver
-        from unittest.mock import MagicMock
-
-        if POSTGRES_URL and not POSTGRES_URL.startswith("sqlite"):
-            # Khởi tạo ConnectionPool
-            pool = ConnectionPool(conninfo=POSTGRES_URL, max_size=5, min_size=1, timeout=5.0)
-            
-            # Nếu ConnectionPool bị mock trong quá trình chạy tests, fallback sang MemorySaver
-            if isinstance(pool, MagicMock) or hasattr(pool, "_mock_return_value") or "MagicMock" in str(type(pool)):
-                print("[Graph] Postgres pool is mocked/detected as MagicMock. Falling back to MemorySaver.")
-                checkpointer = None
-            else:
-                checkpointer = PostgresSaver(pool)
-                # Thiết lập bảng cơ sở dữ liệu nếu chưa tồn tại
-                try:
-                    with pool.connection() as conn:
-                        checkpointer.setup(conn)
-                    print("[Graph] Successfully initialized PostgresSaver checkpointer.")
-                except Exception as setup_err:
-                    print(f"[Graph Warning] PostgresSaver setup failed: {setup_err}. Trying checkpointer without manual setup...")
-        else:
-            print("[Graph] No valid POSTGRES_URL or using local sqlite. Falling back to MemorySaver.")
-    except Exception as e:
-        print(f"[Graph Warning] Cannot initialize PostgresSaver: {e}. Falling back to MemorySaver.")
-
     if checkpointer is None:
-        from langgraph.checkpoint.memory import MemorySaver
-        checkpointer = MemorySaver()
-        print("[Graph] Using MemorySaver for current session.")
+        # 7. Persistence: Sử dụng PostgresSaver cho TIP-004 với cơ chế Fallback sang MemorySaver
+        try:
+            from core.config import POSTGRES_URL
+            from psycopg_pool import ConnectionPool
+            from langgraph.checkpoint.postgres import PostgresSaver
+            from unittest.mock import MagicMock
+
+            if POSTGRES_URL and not POSTGRES_URL.startswith("sqlite"):
+                # Khởi tạo ConnectionPool
+                pool = ConnectionPool(conninfo=POSTGRES_URL, max_size=5, min_size=1, timeout=5.0)
+                
+                # Nếu ConnectionPool bị mock trong quá trình chạy tests, fallback sang MemorySaver
+                if isinstance(pool, MagicMock) or hasattr(pool, "_mock_return_value") or "MagicMock" in str(type(pool)):
+                    print("[Graph] Postgres pool is mocked/detected as MagicMock. Falling back to MemorySaver.")
+                    checkpointer = None
+                else:
+                    checkpointer = PostgresSaver(pool)
+                    # Thiết lập bảng cơ sở dữ liệu nếu chưa tồn tại
+                    try:
+                        checkpointer.setup()
+                        print("[Graph] Successfully initialized PostgresSaver checkpointer.")
+                    except Exception as setup_err:
+                        print(f"[Graph Warning] PostgresSaver setup failed: {setup_err}. Trying checkpointer without manual setup...")
+            else:
+                print("[Graph] No valid POSTGRES_URL or using local sqlite. Falling back to MemorySaver.")
+        except Exception as e:
+            print(f"[Graph Warning] Cannot initialize PostgresSaver: {e}. Falling back to MemorySaver.")
+
+        if checkpointer is None:
+            from langgraph.checkpoint.memory import MemorySaver
+            checkpointer = MemorySaver()
+            print("[Graph] Using MemorySaver for current session.")
     
     # Biên dịch với checkpointer
     app = workflow.compile(checkpointer=checkpointer)
@@ -154,4 +153,36 @@ def get_graph_app():
     return _graph_app
 
 app = get_graph_app()
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def get_async_graph_app():
+    """Context manager to initialize and return the async-compatible graph app (TIP-004)."""
+    checkpointer = None
+    async_conn_mgr = None
+    
+    try:
+        from core.config import POSTGRES_URL
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+        from unittest.mock import MagicMock
+        
+        if POSTGRES_URL and not POSTGRES_URL.startswith("sqlite") and not "MagicMock" in str(type(POSTGRES_URL)):
+            async_conn_mgr = AsyncPostgresSaver.from_conn_string(POSTGRES_URL)
+            checkpointer = await async_conn_mgr.__aenter__()
+            await checkpointer.setup()
+        else:
+            from langgraph.checkpoint.memory import MemorySaver
+            checkpointer = MemorySaver()
+            print("[Graph] Using MemorySaver for current session.")
+    except Exception as e:
+        print(f"[Graph Async Warning] Failed to initialize AsyncPostgresSaver: {e}. Falling back to MemorySaver.")
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
+
+    try:
+        yield build_graph(checkpointer)
+    finally:
+        if async_conn_mgr is not None:
+            await async_conn_mgr.__aexit__(None, None, None)
 

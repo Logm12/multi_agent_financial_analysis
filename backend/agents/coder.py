@@ -79,7 +79,7 @@ IMPORTANT DATA CLEANING RULES:
    - Stage 3: Replace the decimal comma with dot, and cast to numeric:
      `df['col'] = pd.to_numeric(df['col'].str.replace(',', '.', regex=False), errors='coerce')`
 3. Always verify datatypes and cast using the above 4-stage pipeline before calculations.
-4. Wrap all calculation logic in a `try...except Exception as e:` block to log errors as `print(f"[Execution Error] {e}")` instead of crashing.
+4. Wrap all calculation logic in a `try...except Exception as e:` block to log errors as `print(f"[Execution Error] {{e}}")` instead of crashing.
 5. All text in charts must be in English. Use clear labels, titles, and legends. Do NOT call matplotlib.use() or set rcParams as they are pre-configured by the sandbox.
 6. Make charts highly aesthetic and detailed:
    - Use professional colors (e.g., Indigo `#4F46E5` for primary data, Emerald `#10B981` for secondary, and Rose `#F43F5E` for comparison/negatives).
@@ -96,11 +96,11 @@ try:
     # Context: DataFrame with columns 'Year', 'Net Income', 'Total Equity'
     # 'Net Income' values: ["120.500.000 VND", "150.000.000,50 VND"]
     # 'Total Equity' values: ["1.000.000.000 VND", "1.100.000.000,00 VND"]
-    data = {
+    data = {{
         'Year': ['2023', '2024'],
         'Net Income': ["120.500.000 VND", "150.000.000,50 VND"],
         'Total Equity': ["1.000.000.000 VND", "1.100.000.000,00 VND"]
-    }
+    }}
     df = pd.DataFrame(data)
     
     # 4-Stage Normalization Pipeline

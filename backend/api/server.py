@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
 from sse_starlette.sse import EventSourceResponse
 
-from agents.graph import get_graph_app
+from agents.graph import get_graph_app, get_async_graph_app
 from core.config import DATA_DIR, TEMP_DIR, REDIS_URL
 from core.database import init_db
 from api.auth import router as auth_router, get_current_user
@@ -143,63 +143,63 @@ async def chat_stream(
         (TEMP_DIR / scoped_thread_id).mkdir(parents=True, exist_ok=True)
 
         try:
-            graph_app = get_graph_app()
             active_chart_path = None # Track accumulated chart path in this session
             active_chart_data = None
             trace_steps = []
-            async for output in graph_app.astream(inputs, config=config):
-                for node, values in output.items():
-                    # Accumulate chart path if any node produced it (e.g., coder)
-                    if "chart_path" in values and values["chart_path"]:
-                        active_chart_path = values["chart_path"]
-                    if "execution_result" in values and values["execution_result"]:
-                        parsed = extract_chart_data(values["execution_result"])
-                        if parsed:
-                            active_chart_data = parsed
-                    
-                    # Send node status (Thought Process)
-                    step_msg = values["steps"][-1] if values.get("steps") else f"Executing {node}..."
-                    trace_steps.append({"node": node, "output": step_msg})
-                    yield {
-                        "event": "step",
-                        "data": json.dumps({"node": node, "output": step_msg})
-                    }
-                    
-                    # If it is the final node or has a final_answer
-                    if "final_answer" in values:
-                        clean_answer = values["final_answer"].replace("[CHART_01_RENDERED]", "").strip()
-                        if active_chart_path:
-                            persist_chart(active_chart_path, scoped_thread_id)
-                        chart_url = f"/chart/{scoped_thread_id}" if active_chart_path and (os.path.exists(active_chart_path) or os.path.exists(DATA_DIR / "charts" / f"{scoped_thread_id}.png")) else None
-                        active_warnings = values.get("warnings", [])
+            async with get_async_graph_app() as graph_app:
+                async for output in graph_app.astream(inputs, config=config):
+                    for node, values in output.items():
+                        # Accumulate chart path if any node produced it (e.g., coder)
+                        if "chart_path" in values and values["chart_path"]:
+                            active_chart_path = values["chart_path"]
+                        if "execution_result" in values and values["execution_result"]:
+                            parsed = extract_chart_data(values["execution_result"])
+                            if parsed:
+                                active_chart_data = parsed
+                        
+                        # Send node status (Thought Process)
+                        step_msg = values["steps"][-1] if values.get("steps") else f"Executing {node}..."
+                        trace_steps.append({"node": node, "output": step_msg})
                         yield {
-                            "event": "final_answer",
-                            "data": json.dumps({
-                                "content": clean_answer,
-                                "chart_url": chart_url,
-                                "chart_data": active_chart_data,
-                                "chart_type": "bar"
-                            })
+                            "event": "step",
+                            "data": json.dumps({"node": node, "output": step_msg})
                         }
-                        # Write the trace to localized trace storage
-                        from core.logger import write_agent_trace
-                        write_agent_trace(
-                            thread_id=scoped_thread_id,
-                            message=message,
-                            steps=trace_steps,
-                            final_answer=clean_answer,
-                            chart_url=chart_url
-                        )
-                        # TIP-005 Telemetry validation logging
-                        from core.database import log_session_audit
-                        log_session_audit(
-                            session_id=scoped_thread_id,
-                            question=message,
-                            answer=clean_answer,
-                            steps=[s["output"] for s in trace_steps],
-                            chart_b64=chart_url,
-                            warnings=active_warnings
-                        )
+                        
+                        # If it is the final node or has a final_answer
+                        if "final_answer" in values:
+                            clean_answer = values["final_answer"].replace("[CHART_01_RENDERED]", "").strip()
+                            if active_chart_path:
+                                persist_chart(active_chart_path, scoped_thread_id)
+                            chart_url = f"/chart/{scoped_thread_id}" if active_chart_path and (os.path.exists(active_chart_path) or os.path.exists(DATA_DIR / "charts" / f"{scoped_thread_id}.png")) else None
+                            active_warnings = values.get("warnings", [])
+                            yield {
+                                "event": "final_answer",
+                                "data": json.dumps({
+                                    "content": clean_answer,
+                                    "chart_url": chart_url,
+                                    "chart_data": active_chart_data,
+                                    "chart_type": "bar"
+                                })
+                            }
+                            # Write the trace to localized trace storage
+                            from core.logger import write_agent_trace
+                            write_agent_trace(
+                                thread_id=scoped_thread_id,
+                                message=message,
+                                steps=trace_steps,
+                                final_answer=clean_answer,
+                                chart_url=chart_url
+                            )
+                            # TIP-005 Telemetry validation logging
+                            from core.database import log_session_audit
+                            log_session_audit(
+                                session_id=scoped_thread_id,
+                                question=message,
+                                answer=clean_answer,
+                                steps=[s["output"] for s in trace_steps],
+                                chart_b64=chart_url,
+                                warnings=active_warnings
+                            )
             
             # Send end signal
             yield {"event": "done", "data": "end"}
@@ -209,6 +209,9 @@ async def chat_stream(
             cleanup_session(scoped_thread_id, str(TEMP_DIR / scoped_thread_id))
             
         except Exception as e:
+            import traceback
+            print("[SSE Error Traceback]")
+            traceback.print_exc()
             yield {
                 "event": "error",
                 "data": json.dumps({"detail": str(e)})
@@ -271,51 +274,51 @@ async def demo_stream(message: str, session_id: str):
             
             (TEMP_DIR / f"demo_{session_id}").mkdir(parents=True, exist_ok=True)
 
-            graph_app = get_graph_app()
             active_chart_path = None
             active_chart_data = None
             trace_steps = []
             
-            async for output in graph_app.astream(inputs, config=config):
-                for node, values in output.items():
-                    if "chart_path" in values and values["chart_path"]:
-                        active_chart_path = values["chart_path"]
-                    if "execution_result" in values and values["execution_result"]:
-                        parsed = extract_chart_data(values["execution_result"])
-                        if parsed:
-                            active_chart_data = parsed
-                    
-                    # Map the thought steps (Thinking UI for frontend)
-                    step_msg = values["steps"][-1] if values.get("steps") else f"Executing {node}..."
-                    trace_steps.append({"node": node, "output": step_msg})
-                    yield {
-                        "event": "step",
-                        "data": json.dumps({"node": node, "output": step_msg})
-                    }
-                    
-                    if "final_answer" in values:
-                        clean_answer = values["final_answer"].replace("[CHART_01_RENDERED]", "").strip()
-                        if active_chart_path:
-                            persist_chart(active_chart_path, f"demo_{session_id}")
-                        chart_url = f"/chart/demo_{session_id}" if active_chart_path and (os.path.exists(active_chart_path) or os.path.exists(DATA_DIR / "charts" / f"demo_{session_id}.png")) else None
+            async with get_async_graph_app() as graph_app:
+                async for output in graph_app.astream(inputs, config=config):
+                    for node, values in output.items():
+                        if "chart_path" in values and values["chart_path"]:
+                            active_chart_path = values["chart_path"]
+                        if "execution_result" in values and values["execution_result"]:
+                            parsed = extract_chart_data(values["execution_result"])
+                            if parsed:
+                                active_chart_data = parsed
+                        
+                        # Map the thought steps (Thinking UI for frontend)
+                        step_msg = values["steps"][-1] if values.get("steps") else f"Executing {node}..."
+                        trace_steps.append({"node": node, "output": step_msg})
                         yield {
-                            "event": "final_answer",
-                            "data": json.dumps({
-                                "content": clean_answer,
-                                "chart_url": chart_url,
-                                "chart_data": active_chart_data,
-                                "chart_type": "bar"
-                            })
+                            "event": "step",
+                            "data": json.dumps({"node": node, "output": step_msg})
                         }
-                        # Write the trace to localized trace storage
-                        from core.logger import write_agent_trace
-                        write_agent_trace(
-                            thread_id=f"demo_{session_id}",
-                            message=message,
-                            steps=trace_steps,
-                            final_answer=clean_answer,
-                            chart_url=chart_url
-                        )
+                        
+                        if "final_answer" in values:
+                            clean_answer = values["final_answer"].replace("[CHART_01_RENDERED]", "").strip()
+                            if active_chart_path:
+                                persist_chart(active_chart_path, f"demo_{session_id}")
+                            chart_url = f"/chart/demo_{session_id}" if active_chart_path and (os.path.exists(active_chart_path) or os.path.exists(DATA_DIR / "charts" / f"demo_{session_id}.png")) else None
+                            yield {
+                                "event": "final_answer",
+                                "data": json.dumps({
+                                    "content": clean_answer,
+                                    "chart_url": chart_url,
+                                    "chart_data": active_chart_data,
+                                    "chart_type": "bar"
+                                })
+                            }
+                            # Write the trace to localized trace storage
+                            from core.logger import write_agent_trace
+                            write_agent_trace(
+                                thread_id=f"demo_{session_id}",
+                                message=message,
+                                steps=trace_steps,
+                                final_answer=clean_answer,
+                                chart_url=chart_url
+                            )
             
             yield {"event": "done", "data": "end"}
 
