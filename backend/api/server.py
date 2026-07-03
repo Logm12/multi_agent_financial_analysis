@@ -21,6 +21,19 @@ from api.routes import router as routes_router
 from api.document import router as document_router
 import re
 
+def sanitize_json_data(val):
+    """Recursively replace NaN, Inf, -Inf with None for standard JSON serialization."""
+    import math
+    if isinstance(val, dict):
+        return {k: sanitize_json_data(v) for k, v in val.items()}
+    elif isinstance(val, list):
+        return [sanitize_json_data(v) for v in val]
+    elif isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
+            return None
+    return val
+
+
 def extract_chart_data(execution_result: str) -> Optional[list]:
     """DataFrame-to-JSON parser: extracts a JSON list from execution stdout."""
     if not execution_result:
@@ -29,14 +42,14 @@ def extract_chart_data(execution_result: str) -> Optional[list]:
     match = re.search(r"<json_data>(.*?)</json_data>", execution_result, re.DOTALL)
     if match:
         try:
-            return json.loads(match.group(1).strip())
+            return sanitize_json_data(json.loads(match.group(1).strip()))
         except Exception:
             pass
     # 2. Fallback: Search for a raw JSON array structure
     match_fallback = re.search(r"\[\s*\{.*\}\s*\]", execution_result, re.DOTALL)
     if match_fallback:
         try:
-            return json.loads(match_fallback.group(0).strip())
+            return sanitize_json_data(json.loads(match_fallback.group(0).strip()))
         except Exception:
             pass
     return None
