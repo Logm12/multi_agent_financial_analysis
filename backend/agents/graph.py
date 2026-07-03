@@ -18,7 +18,7 @@ def check_retry(state: AgentState):
     """Kiểm tra xem có cần retry code hay không."""
     # Nếu có kết quả thực thi và không chứa lỗi thì đi tiếp tới synthesizer
     res = state.get("execution_result", "")
-    if res and not any(x in res for x in ["Traceback", "Error:", "Exception:"]):
+    if res and not any(x in res for x in ["Traceback", "Error:", "Exception:", "[Execution Error]"]):
         return "synthesize"
     
     # Nếu lỗi quá 5 lần thì dừng lại đi tới synthesizer để báo lỗi

@@ -237,7 +237,7 @@ def coder_node(state: AgentState, config: RunnableConfig) -> dict:
             print(f"[Coder] Execution failed with error: {err_msg}")
             return {
                 "current_code": code,
-                "execution_result": err_msg,
+                "execution_result": f"[Execution Error] {err_msg}",
                 "tracebacks": [err_msg],
                 "error_count": error_count + 1,
                 "steps": [f"Attempting correction: Coder executed script (attempt {error_count + 1}) but encountered exception: {err_msg[:50]}..."]
@@ -277,7 +277,7 @@ def coder_node(state: AgentState, config: RunnableConfig) -> dict:
         print(f"[Coder] Runtime Exception: {err_msg}")
         return {
             "current_code": code,
-            "execution_result": err_msg,
+            "execution_result": f"[Execution Error] {err_msg}",
             "tracebacks": [err_msg],
             "error_count": error_count + 1,
             "steps": [f"Coder encountered runtime error: {err_msg}"]
